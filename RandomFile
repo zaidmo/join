@@ -1,0 +1,27 @@
+import java.io.*;
+import java.util.Random;
+
+public class RandomFile {
+public static void main(String[] args) throws IOException {
+
+    PrintWriter output = new PrintWriter("randomNumbers.txt");
+    final int randomNumberCount =  1000000;    
+    final int randomNumberCount2 = 2000000;
+    final int rangeNumber = 100;
+
+    Random randomGenerator = new Random();
+
+
+    for (int i = randomNumberCount; i >= 0; i--)
+    {
+    output.print("R("+randomGenerator.nextInt(rangeNumber)+","+randomGenerator.nextInt(rangeNumber) + ") ");
+    }
+    
+    for (int i = randomNumberCount2; i >= 0; i--)
+    {
+    output.print("S("+randomGenerator.nextInt(rangeNumber)+","+randomGenerator.nextInt(rangeNumber) + ") ");
+    }
+    output.close();
+
+  }
+}

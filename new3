@@ -1,0 +1,253 @@
+
+import java.io.IOException;
+import java.util.*;
+
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.conf.*;
+import org.apache.hadoop.io.*;
+import org.apache.hadoop.mapreduce.*;
+//import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
+//import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+
+import java.io.IOException;
+import java.util.Iterator;
+import java.util.StringTokenizer;
+
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapred.FileInputFormat;
+import org.apache.hadoop.mapred.FileOutputFormat;
+import org.apache.hadoop.mapred.FileSplit;
+import org.apache.hadoop.mapred.JobClient;
+import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.MapReduceBase;
+import org.apache.hadoop.mapred.Mapper;
+import org.apache.hadoop.mapred.OutputCollector;
+import org.apache.hadoop.mapred.Reducer;
+import org.apache.hadoop.mapred.Reporter;
+
+
+
+public class new3 {
+
+
+	
+
+	
+public static class Map extends MapReduceBase
+implements Mapper<LongWritable, Text, Text, Text> { 
+private   Text keym = new Text();
+private 	Text value2 = new Text();
+
+
+
+public void map(LongWritable key, Text value, OutputCollector<Text, Text> output, Reporter reporter) throws IOException {
+	
+	
+
+	String input = value.toString();
+
+StringTokenizer result =new StringTokenizer(input);
+while (result.hasMoreTokens()) {
+
+String word_temp2 = result.nextToken().toString();
+	char[] split_word = word_temp2.toCharArray();
+	
+
+	
+	String word_temp3 = word_temp2;
+	word_temp3=word_temp3.substring(2);
+	word_temp3= word_temp3.substring(0, word_temp3.length() - 1);
+	StringTokenizer temp3 = new StringTokenizer(word_temp3, ",");
+	 String[] split_word3 = new String[2];
+	int ii=0;
+	while (temp3.hasMoreTokens()) {
+		String word_temp33=temp3.nextToken();
+		 split_word3[ii] = word_temp33;
+			 ii+=1
+					;
+			 }
+
+			
+	String value1=new String("");
+	String keyt=new String("");
+	if (split_word[0]=='R')  {  keyt=split_word3[1].toString();} else 
+			if (split_word[0]=='S')  { keyt=split_word3[0];}
+		if (split_word[0]=='R')  { value1=split_word3[0].toString();} else 
+		if (split_word[0]=='S')  { value1=split_word3[1].toString();}
+		char rel=split_word[0];
+
+       String value2s=value1+","+rel+" ";
+       String keyms=""+keyt;
+      
+
+       Text keym=new Text(keyms);
+       Text value2=new Text(value2s);
+       
+		output.collect(keym, value2);		
+	}
+
+
+}
+}
+ 
+
+public static class Reduce extends MapReduceBase implements Reducer<Text, Text, Text, Text> {
+public void reduce(Text key, Iterator<Text> values, OutputCollector<Text, Text> output, Reporter reporter) throws IOException {
+
+	
+	String input_redu = values.toString();
+	
+     StringBuilder toReturn = new StringBuilder(6000);
+     while (values.hasNext()){
+
+       toReturn.append(values.next().toString());
+     }
+
+
+	
+	String  value_str = toReturn.toString();
+
+StringTokenizer tokens =new StringTokenizer(value_str);
+
+
+
+int lr=0;
+int lt=0;
+while (tokens.hasMoreTokens()) {
+String word_temp2r=tokens.nextToken();
+
+	char[] split_word = word_temp2r.toCharArray();
+
+	
+	if (split_word[word_temp2r.length()-1]=='R')  {  lr+=1; } else 
+			if (split_word[word_temp2r.length()-1]=='S')  { lt+=1;}
+}
+
+
+
+	
+		StringBuilder valuer=new StringBuilder(6000);
+		StringBuilder valuet=new StringBuilder(6000);
+
+		
+		StringTokenizer tokens2 =new StringTokenizer(value_str);
+
+		int i=0;
+		int j=0;
+		String[] split_word =new String[2];
+
+while (tokens2.hasMoreTokens()) {
+String word_temp2r=tokens2.nextToken();
+
+
+StringTokenizer tokens3 =new StringTokenizer(word_temp2r,",");
+	split_word[0]=tokens3.nextToken();
+	split_word[1]=tokens3.nextToken();
+	if (split_word[1].charAt(0)=='R')  { valuer.append(split_word[0]+","); i+=1;
+} 
+	else 
+			if (split_word[1].charAt(0)=='S')  { valuet.append(split_word[0]+","); j+=1; 
+			}
+			
+	
+}
+
+
+
+//System.out.printf("key= %s \n",key);
+
+//System.out.printf("lr= %d \n",lr);
+//System.out.printf("lt= %d \n",lt);
+
+
+
+
+
+
+	
+	StringTokenizer valuer2 =new StringTokenizer(valuer.toString(),",");
+	StringTokenizer valuet2 =new StringTokenizer(valuet.toString(),",");
+	String[] valuer3;
+	 String[] valuet3;
+	 valuer3= new String[lr];
+		valuet3= new String[lt];
+		i=0;
+		while (valuer2.hasMoreTokens()) 
+			{valuer3[i]=valuer2.nextToken();
+			i+=1;
+	}
+		i=0;
+		while (valuet2.hasMoreTokens()) 
+		{valuet3[i]=valuet2.nextToken();
+		i+=1;
+}
+	
+		
+	
+
+	StringBuilder outp = new StringBuilder(6000);
+	
+	for (int x=0; x<lr;  x++) {
+
+		 for (int y=0; y<lt;  y++)
+		{      
+				outp=outp.append("T("+valuer3[x]+","+key+","+valuet3[y]+")"+" ");	
+
+			
+		}
+	}
+
+	
+	
+
+
+
+
+
+       
+//System.out.printf("REDUCE2= %s \n",outp);
+
+	
+
+String outp2=outp.toString();
+Text outs=new Text(outp2);
+output.collect(key,outs);
+}
+}
+
+public static void main(String[] args)  {
+
+JobClient client = new JobClient();
+JobConf conf = new JobConf(WordCount.class);
+
+conf.setJobName("WordCount");
+
+//conf.setNumReduceTasks(2);
+
+
+
+conf.setOutputKeyClass(Text.class);
+conf.setOutputValueClass(Text.class);
+
+FileInputFormat.addInputPath(conf, new Path("input"));
+FileOutputFormat.setOutputPath(conf, new Path("output"));
+
+conf.setMapperClass(Map.class);
+conf.setReducerClass(Reduce.class);
+
+
+client.setConf(conf);
+
+try {
+	JobClient.runJob(conf);
+} catch (Exception e) {
+	e.printStackTrace();
+}
+}
+}
+
+

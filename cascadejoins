@@ -1,0 +1,122 @@
+
+
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
+import java.util.ArrayList;
+import java.io.IOException;
+
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.Text;
+
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+import org.apache.hadoop.util.*;
+
+public class cascadejoins
+{
+	private  static Text joiningCol=new Text();
+	private  static Text restCol=new Text();
+	private  static String rest="";
+   	 private  static String joining="";
+	
+    public static class joinsMap extends Mapper<Text,Text,Text,Text>{
+
+	 // String to be scanned to find the pattern.
+    String line = "";
+    String pattern = "([rs])(\\()(\\d+)(\\,)(\\d+)";
+
+   // Create a Pattern object
+    Pattern r = Pattern.compile(pattern);
+
+
+
+	public void map(Text key, Text value, Context context) throws IOException, InterruptedException{
+
+	line=value.toString();
+ 
+    // Now create matcher object.
+    Matcher m = r.matcher(line);
+    
+    //Distinguis between r,s relations
+   while (m.find()) {
+       if(m.group(1).equals("r"))  {
+      	 joiningCol.set(m.group(5));
+      	 restCol.set("r"+m.group(3));
+      	// if from r then joining component will be in the 2nd column
+       } else 	 if(m.group(1).equals("s"))  {
+                    joiningCol.set(m.group(3));
+                    restCol.set("s"+m.group(5));
+			//if from s then the joining component will be from the 1st column.
+      }
+	//Write as key,value pairs and repeat.
+       context.write(new Text(joiningCol),new Text(restCol));
+       
+      
+    }//end while loop
+   
+ }// end map method
+}//end map class
+  
+public static class joinsReduce extends Reducer<Text,Text,Text,Text>{
+
+public void reduce (Text key, Iterable<Text> values, Context context){
+	
+	ArrayList s=new ArrayList();
+	ArrayList r=new ArrayList();
+	String outVal="";
+	String[] source=values.toString().split("\\d+");
+	String[] otherCol=values.toString().split("[rs]");
+	
+	//determine source of components where components comming from r are stored in arraylist r , and likewise for s.
+	for(int i=0;i<source.length;i++){
+		if (source[i].equals("r")){
+			r.add(otherCol[i]);
+			}else if (source[i].equals("s")){
+				s.add(otherCol[i]);
+				}
+					}//end for loop.
+	//join tuples
+	for (int j=0;j<=r.size();j++){
+		for (int k=0;k<=s.size();k++){
+		outVal=r.get(j)+key.toString()+s.get(k);
+		context.write(key,new Text(outVal));
+		}
+		}
+		
+
+	
+	}//end method
+	
+	
+	
+	
+}//end class
+
+	public static void main( String args[] ) throws Exception {
+
+      Configuration conf = new Configuration();
+         
+         Job job = new Job(conf, "cascadejoins");
+     
+     job.setOutputKeyClass(Text.class);
+     job.setOutputValueClass(Text.class);
+         
+     job.setMapperClass(joinsMap.class);
+     job.setReducerClass(joinsReduce.class);
+         
+     job.setInputFormatClass(TextInputFormat.class);
+     job.setOutputFormatClass(TextOutputFormat.class);
+         
+     FileInputFormat.addInputPath(job, new Path("inputJoin"));
+     FileOutputFormat.setOutputPath(job, new Path("output"));
+         
+     job.waitForCompletion(true);
+
+} //end main
+}

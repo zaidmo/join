@@ -1,22 +1,26 @@
 
-
+import java.util.*;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 import java.util.ArrayList;
 import java.io.IOException;
 
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.conf.*;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.Text;import org.apache.hadoop.io.*;
 
+import org.apache.hadoop.mapreduce.*;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
-import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.util.*;
+import org.apache.hadoop.util.GenericOptionsParser;
+
 
 public class cascadejoins
 {
@@ -65,10 +69,10 @@ public class cascadejoins
   
 public static class joinsReduce extends Reducer<Text,Text,Text,Text>{
 
-public void reduce (Text key, Iterable<Text> values, Context context){
+public void reduce (Text key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
 	
-	ArrayList s=new ArrayList();
-	ArrayList r=new ArrayList();
+	List<String> r = new ArrayList<String>();
+	List<String> s = new ArrayList<String>();
 	String outVal="";
 	String[] source=values.toString().split("\\d+");
 	String[] otherCol=values.toString().split("[rs]");
@@ -98,7 +102,10 @@ public void reduce (Text key, Iterable<Text> values, Context context){
 	
 }//end class
 
-	public static void main( String args[] ) throws Exception {
+	public static void main( String[] args ) throws Exception {
+
+
+	
 
       Configuration conf = new Configuration();
          
@@ -113,8 +120,8 @@ public void reduce (Text key, Iterable<Text> values, Context context){
      job.setInputFormatClass(TextInputFormat.class);
      job.setOutputFormatClass(TextOutputFormat.class);
          
-     FileInputFormat.addInputPath(job, new Path("inputJoin"));
-     FileOutputFormat.setOutputPath(job, new Path("output"));
+     FileInputFormat.addInputPath(job, new Path(args[0]));
+     FileOutputFormat.setOutputPath(job, new Path(args[1]));
          
      job.waitForCompletion(true);
 

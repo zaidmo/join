@@ -147,9 +147,9 @@ public void reduce (Text key, Iterable<Text> values, Context context) throws IOE
      Configuration conf = new Configuration();
          
       
-	 Job job = new Job(conf, "test2");
+	 Job job = new Job(conf, "join2");
 	
-	job.setJarByClass(test2.class);
+	job.setJarByClass(join2.class);
 	
 	//job.setNumReduceTasks(0);//***
      

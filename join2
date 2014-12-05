@@ -1,0 +1,171 @@
+
+import java.lang.*;
+import java.util.*;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
+import java.util.ArrayList;
+import java.io.IOException;
+
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.conf.*;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.Text;import org.apache.hadoop.io.*;
+
+import org.apache.hadoop.mapreduce.*;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+import org.apache.hadoop.util.*;
+import org.apache.hadoop.util.GenericOptionsParser;
+
+
+public class join2
+{
+	
+	private  static String rest="";
+   	 private  static String joining="";
+	
+    public static class joinsMap extends Mapper<LongWritable,Text,Text,Text>{
+
+	
+	private  static Text outKey=new Text();
+	private  static Text outValue=new Text();
+	
+
+	public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException{
+
+	
+	
+ 	String line = value.toString();
+	
+
+        StringTokenizer st = new StringTokenizer(line);
+	      
+	String token="";
+	      
+	      // checking next token
+	     while (st.hasMoreTokens()){
+	    	  token= st.nextToken();
+	    	
+	      
+	    	  System.out.println("Next token is : " + token);
+	    	  
+	    	  String[] elements= token.split("\\s+|[,\\(\\)]");
+	    	  int lastIndex = elements.length-1;
+	    	  int startIndex=1;
+	    	  String joining="";
+		String source=elements[0];
+	    	  String rest=source;
+	    	  if (source.equals("R")){
+	    	  	joining=elements[lastIndex];
+	    	 	System.out.println(joining);
+	    	  	for (int j=startIndex;j<=lastIndex-1;j++){
+	    		  rest+=","+elements[j];
+	    		  	} //end for
+	    	  	System.out.println(rest);
+	    	 	 }else if (source.equals("S")){
+		    	  	joining=elements[1];
+		    	 	System.out.println(joining);
+		    	 	 for (int i=startIndex+1;i<=lastIndex;i++){
+		    		  rest+=","+elements[i];
+		    		     	  	}//end for
+		    	  System.out.println(rest);
+		    	  }//end 2nd if
+		outKey.set(joining);
+		outValue.set(rest);
+		context.write(outKey, outValue);
+	    	  elements=null;
+
+	    	 
+	     }
+		
+
+               
+			
+   
+ }// end map method
+}//end map class
+  
+public static class joinsReduce extends Reducer<Text,Text,Text,Text>{
+
+	//private static Text outVal=new Text();
+
+public void reduce (Text key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
+	String kjoin=key.toString();
+	ArrayList<String> r = new ArrayList<String>();
+	ArrayList<String> s = new ArrayList<String>();
+	String[] parts;
+
+	for (Text value : values){
+	String line=value.toString();
+	parts=line.split(",");
+	String source=parts[0];
+	
+	
+	int lastIndex=parts.length-1;
+	int startIndex=1;
+	//seperate components comming from r and s.
+	//for(int i=startIndex;i<=lastIndex;i++){
+		if (source.equals("R")){
+			r.add(parts[1]);
+			
+			}else if (source.equals("S")){
+				s.add(parts[1]);
+				
+				}
+					//}//end for loop.
+	parts=null;
+	} // end for loop for iteration over values.
+
+	//join tuples
+	for (int a=0;a<=r.size()-1;a++){
+		for (int b=0;b<=s.size()-1;b++){
+		//outVal.set(r.get(a)+kjoin+s.get(b));
+		context.write(key,new Text(r.get(a)+","+kjoin+","+s.get(b)));
+		}
+		
+		
+	
+	}
+	
+	}//end method
+	
+	
+	
+	
+}//end class
+
+	public static void main( String[] args ) throws Exception {
+
+
+	
+
+     Configuration conf = new Configuration();
+         
+      
+	 Job job = new Job(conf, "test2");
+	
+	job.setJarByClass(test2.class);
+	
+	//job.setNumReduceTasks(0);//***
+     
+     job.setOutputKeyClass(Text.class);
+     job.setOutputValueClass(Text.class);
+         
+     job.setMapperClass(joinsMap.class);
+     job.setReducerClass(joinsReduce.class);
+         
+     job.setInputFormatClass(TextInputFormat.class);
+     job.setOutputFormatClass(TextOutputFormat.class);
+         
+     FileInputFormat.addInputPath(job, new Path(args[0]));
+     FileOutputFormat.setOutputPath(job, new Path(args[1]));
+         
+     job.waitForCompletion(true);
+
+} //end main
+}

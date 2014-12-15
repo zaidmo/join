@@ -1,0 +1,26 @@
+
+import java.io.*;
+import java.util.Random;
+
+public class randomTxtFile {
+
+	public static void main(String[] args) throws IOException {
+		String fileName=args[0];
+		PrintWriter output = new PrintWriter(fileName);
+		final int randomNumberCount = 10;
+		
+		final int rangeNumber = 100;
+
+		Random randomGenerator = new Random();
+		String Name=fileName.substring(0,fileName.indexOf(".txt"));
+
+		for (int i = randomNumberCount; i > 0; i--)
+		{
+		output.print(Name+"("+randomGenerator.nextInt(rangeNumber)+","+randomGenerator.nextInt(rangeNumber) + ") ");
+		}
+		
+		output.close();
+		
+		}
+
+	}

@@ -1,0 +1,209 @@
+/* 	-with MultipleInput (two directories)
+	-chain jobs
+*/
+import java.lang.*;
+import java.util.*;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
+import java.util.ArrayList;
+import java.io.IOException;
+
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.conf.*;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.Text;import org.apache.hadoop.io.*;
+
+import org.apache.hadoop.mapreduce.*;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+import org.apache.hadoop.util.*;
+import org.apache.hadoop.util.GenericOptionsParser;
+import org.apache.hadoop.mapreduce.lib.input.MultipleInputs;
+
+
+public class casjoinchain
+{
+	
+	private  static String rest="";
+   	 private  static String joining="";
+	
+    public static class joinsMap extends Mapper<LongWritable,Text,Text,Text>{
+
+	
+	private  static Text outKey=new Text();
+	private  static Text outValue=new Text();
+	
+
+	public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException{
+
+	
+	
+ 	String line = value.toString();
+	
+
+        StringTokenizer st = new StringTokenizer(line);
+	      
+	String token="";
+	      
+	      // checking next token
+	     while (st.hasMoreTokens()){
+	    	token= st.nextToken();
+	    	String source=token.substring(0,token.indexOf("("));
+		String joining="";
+		String rest="";
+		
+	    	  if (source.equals("r")){
+			joining=token.substring(token.lastIndexOf(",")+1,token.indexOf(")")); // the last attribute c in the relation r(a,b,c). joining from the right side; hence the right side always has 2 or more attributes.
+			rest="r,"+token.substring(token.indexOf("(")+1,token.lastIndexOf(",")); // rest of the attributes a,b starting from opening bracket to the last occurence of the comma.preserves order with commas deliminating values.
+	    	  	
+	    	 	 } else {
+		    	  	joining=token.substring(token.indexOf("(")+1,token.indexOf(",")); // first attribute c in relation t(c,d)
+				rest="s,"+token.substring(token.indexOf(",")+1,token.indexOf(")")); // only one since t only has two attributes.
+			    	  }//end else        
+		
+		outKey.set(joining);  //****
+		outValue.set(rest);
+		context.write(outKey, outValue);
+	    	  source=null;
+		  rest=null;
+		joining=null;
+
+	    	 
+	     } // end while , checking tokens.
+		
+
+               
+			
+   
+ }// end map method
+}//end map class
+  
+public static class joinsReduce extends Reducer<Text,Text,NullWritable,Text>{
+
+	//private static Text outVal=new Text();
+
+public void reduce (Text key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
+	String kjoin=key.toString();
+	String newR="";
+	ArrayList<String> r = new ArrayList<String>();
+	ArrayList<String> s = new ArrayList<String>();
+	String line="";
+	String source="";
+	String parts="";
+
+	for (Text value : values){
+	line=value.toString();
+	//map output: b r,a / b s,c //secondpass>> c r,a,b / c s,d..ie..(key)<joining> (value)<relation>,<rest>
+	source=line.substring(0,line.indexOf(","));
+	// everything before the first comma. 
+	parts=line.substring(line.indexOf(",")+1);
+	// everthing after the occurence of the first comma till the end.
+		
+	
+	//seperate components comming from r and s(other/else).
+	
+		if (source.equals("r")){
+			r.add(parts);
+				
+			}  else {
+				s.add(parts);
+				
+				} //end if/else  
+					
+	parts=null;
+	source=null;
+	line=null;
+	} // end for loop for iteration over values.
+
+	//join tuples
+	for (int a=0;a<=r.size()-1;a++){
+		for (int b=0;b<=s.size()-1;b++){ 
+		newR="r("+r.get(a)+","+kjoin+","+s.get(b)+")";
+		context.write(NullWritable.get(),new Text(newR)); // notice a null key value.
+			}
+		}
+		
+	
+	
+	
+	}//end method
+	
+	
+	
+	
+}//end class
+
+	public static void main( String[] args ) throws Exception {
+
+
+/*
+job1
+*/
+
+     Configuration conf1 = new Configuration();
+         
+      
+	 Job job1 = new Job(conf1, "job1");
+	
+	job1.setJarByClass(casjoinchain.class);
+	
+	//job.setNumReduceTasks(0);//***
+     
+     job1.setOutputKeyClass(Text.class);
+     job1.setOutputValueClass(Text.class);
+         
+     job1.setMapperClass(joinsMap.class);
+     job1.setReducerClass(joinsReduce.class);
+         
+     job1.setInputFormatClass(TextInputFormat.class);
+     job1.setOutputFormatClass(TextOutputFormat.class);
+
+
+	//two inputs to first map.
+        MultipleInputs.addInputPath(job1, new Path(args[0]),TextInputFormat.class,joinsMap.class);   
+  	MultipleInputs.addInputPath(job1, new Path(args[1]),TextInputFormat.class,joinsMap.class);
+		
+     // single output from reducer.
+     FileOutputFormat.setOutputPath(job1, new Path("temp_out"));
+         
+     job1.waitForCompletion(true);
+
+/*
+job2
+*/
+ 	Configuration conf2 = new Configuration();
+         
+      
+	 Job job2 = new Job(conf2, "job2");
+	
+	job2.setJarByClass(casjoinchain.class);
+	
+	
+     
+     job2.setOutputKeyClass(Text.class);
+     job2.setOutputValueClass(Text.class);
+         
+     job2.setMapperClass(joinsMap.class);
+     job2.setReducerClass(joinsReduce.class);
+         
+     job2.setInputFormatClass(TextInputFormat.class);
+     job2.setOutputFormatClass(TextOutputFormat.class);
+
+
+
+        //two inputs one from job1.
+        MultipleInputs.addInputPath(job2, new Path("temp_out"),TextInputFormat.class,joinsMap.class);   
+  	MultipleInputs.addInputPath(job2, new Path(args[2]),TextInputFormat.class,joinsMap.class);
+     // single output from reducer.
+     FileOutputFormat.setOutputPath(job2, new Path(args[3]));
+         
+     job2.waitForCompletion(true);
+
+
+} //end main
+}

@@ -1,5 +1,10 @@
 /* 	-with MultipleInput (two directories)
 	-chain jobs
+	
+	r(a,b) s(b,c) t(c,d)
+	1- r(a,b) * s(b,c) >>>r(a,b,c)  [first pass M/R]
+	2- r(a,b,c)* t(c,d)>>>r(a,b,c,d)  [second pass M/R]
+
 */
 import java.lang.*;
 import java.util.*;

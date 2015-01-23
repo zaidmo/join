@@ -88,7 +88,7 @@ public class multiway
 			outValue.set("S"+","+b+","+c);
 			 context.write(outKey, outValue);//****
 				break;
-		case("T") :
+		case "T" :
 			c=token.substring(token.indexOf("(")+1,token.indexOf(",")); // t(c,d). 
 			d=token.substring(token.indexOf(",")+1,token.indexOf(")")); 
 			hashed=hashFunc(c);
@@ -155,19 +155,21 @@ public void reduce (Text key, Iterable<Text> values, Context context) throws IOE
 	
 	//seperate components comming from r and s and t (other/else).
 	
-		if (source.equals("r")){
+		switch (source) {
+		case "R" :
 			r.add(parts);
+			break;
 
-				
-			}  else if (source.equals("t")) {
-				t.add(parts);
+		case "T" :
+		
+			t.add(parts);
+			break;
 
-				
-				} else if (source.equals("s")){
-					s.add(parts);
+		case "S" :
+			s.add(parts);
+			break;
+		} //end switch
 
-						}//end if/else  
-	
 
 
 	source=null;

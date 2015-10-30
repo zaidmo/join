@@ -1,0 +1,13 @@
+f = open('mergedata.nt', 'rw')
+R = open ('single.txt', 'w')
+
+for line in f:
+    spo = line.split()
+    try:
+        s = spo[0]
+        p = spo[1]
+        o = spo[2]
+        R.write(p+"("+s+","+o+")\n") 
+    except IndexError:
+        # print "Oops!"
+        pass

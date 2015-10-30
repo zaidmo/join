@@ -1,0 +1,237 @@
+/* 	-with MultipleInput (three directories)
+	-one pass - single job
+*/
+import java.lang.*;
+import java.util.*;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
+import java.util.ArrayList;
+import java.io.IOException;
+
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.conf.*;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.Text;import org.apache.hadoop.io.*;
+
+import org.apache.hadoop.mapreduce.*;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+import org.apache.hadoop.util.*;
+import org.apache.hadoop.util.GenericOptionsParser;
+import org.apache.hadoop.mapreduce.lib.input.MultipleInputs;
+
+
+public class Q1
+{
+	
+	
+	
+    public static class joinsMap extends Mapper<LongWritable,Text,Text,Text>{
+
+	
+	private  static Text outKey=new Text();
+	private  static Text outValue=new Text();
+	private static int k1=5;  // 5 by 5 hash table/buckets
+	private static int k2=5;
+	
+
+	public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException{
+
+	
+	
+ 	String line = value.toString();
+	
+
+        StringTokenizer st = new StringTokenizer(line);
+	      
+	String token="";
+	String tempKey="";
+	String tempVal="";
+		
+		
+	      
+	      // checking next token
+	     while (st.hasMoreTokens()){
+	    	token= st.nextToken();
+	    	String source=token.substring(token.indexOf("#")+1,token.indexOf(">"));
+		String a="";
+		String b="";
+		String c="";
+		String d="";
+		String hashed="";
+		
+		
+	    	  if (source.equals("memberOf")){
+			a=token.substring(token.indexOf("(")+1,token.indexOf(",")); // r(a,b). 
+			b=token.substring(token.indexOf(",")+1,token.indexOf(")")); 
+			hashed=hashFunc(b);
+			
+			for (int i=0;i<k2;i++){
+				tempKey=hashed+","+i;
+				outKey.set(tempKey);
+				tempVal="r"+","+a+","+b;
+				outValue.set(tempVal);	
+	    	  		 context.write(outKey, outValue);//**** 
+	    	 	 } // end for 
+		} else if (source.equals("subOrganizationOf")){
+			b=token.substring(token.indexOf("(")+1,token.indexOf(",")); // s(b,c). 
+			c=token.substring(token.indexOf(",")+1,token.indexOf(")")); 
+			
+			outKey.set(hashFunc(b)+","+hashFunc(c));
+			outValue.set("s"+","+b+","+c);
+			 context.write(outKey, outValue);//****
+				}//end if
+			else if (source.equals("underGraduateDegreeFrom")){
+			d=token.substring(token.indexOf("(")+1,token.indexOf(",")); // t(c,d). 
+			c=token.substring(token.indexOf(",")+1,token.indexOf(")")); 
+			hashed=hashFunc(c);
+			
+			for (int j=0;j<k1;j++){
+				tempVal="t"+","+c+","+d;
+				outValue.set(tempVal);
+				tempKey=j+","+hashed;
+				outKey.set(tempKey);	
+	    	  		 context.write(outKey, outValue);//**** 
+	    	 	 } // end for        
+			}//end if
+		//}//end else
+		
+	    	source=null;
+		a=null;
+		b=null;
+		c=null;
+		d=null;
+
+	    	 
+	     } // end while , checking tokens.
+		
+
+               
+			
+   
+ }// end map method
+public static String hashFunc(String attribute){
+		long num=attribute.hashCode();
+		long func= num % k1;
+		
+		return Long.toString(func);
+		
+	} // end hashFunc
+
+}//end map class
+  
+public static class joinsReduce extends Reducer<Text,Text,NullWritable,Text>{
+
+	//private static Text outVal=new Text();
+
+public void reduce (Text key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
+	String kjoin=key.toString();
+	String newR="";
+	List<String[]> r = new ArrayList<String[]>();
+	List<String[]> t = new ArrayList<String[]>();
+	List<String[]> s = new ArrayList<String[]>();
+	String line="";
+	String source="";
+	int i=0;
+
+	for (Text value : values){
+	line=value.toString();
+	String[] parts=new String[2];
+	//map output: h(b),h(c) s,b,c / i,h(b) r,a,b /where i=h(b)
+	source=line.substring(0,line.indexOf(","));
+	// everything before the first comma. 
+	parts[0]=line.substring(line.indexOf(",")+1,line.lastIndexOf(","));
+	// between first comma and last.
+	parts[1]=line.substring(line.lastIndexOf(",")+1);
+	// after last comma	
+	
+	//seperate components comming from r and s and t (other/else).
+	
+		if (source.equals("r")){
+			r.add(parts);
+
+				
+			}  else if (source.equals("t")) {
+				t.add(parts);
+
+				
+				} else if (source.equals("s")){
+					s.add(parts);
+
+						}//end if/else  
+	
+
+
+	source=null;
+	line=null;
+	} // end for loop for iteration over values.
+
+	
+
+	//join tuples
+	 for (String[] listS: s){
+
+		for (String[] listR: r){ 
+		if (listR[1].equals(listS[0])){ // if R.b=S.b where r(a,b) and s(b,c)
+			for (String[] listT: t){
+			if (listS[1].equals(listT[0])){  // if s.c=T.c where s(b,c) and t(c,d) 
+		newR="f("+listR[0]+","+listS[0]+","+listS[1]+","+listT[1]+")";
+		context.write(NullWritable.get(),new Text(newR)); // notice a null key value.
+						} //end 1st if
+					} // end 2nd if
+
+				} // end for T
+			} // end for R
+		} //end for S 
+		
+		
+	
+	
+	
+	}//end method
+	
+	
+	
+	
+}//end class
+
+	public static void main( String[] args ) throws Exception {
+
+
+
+
+     Configuration conf1 = new Configuration();
+         
+      
+	 Job job1 = new Job(conf1, "job1");
+	
+	job1.setJarByClass(Q1.class);
+	
+	job1.setNumReduceTasks(0);//***
+     
+     job1.setOutputKeyClass(Text.class);
+     job1.setOutputValueClass(Text.class);
+         
+     job1.setMapperClass(joinsMap.class);
+     job1.setReducerClass(joinsReduce.class);
+         
+     job1.setInputFormatClass(TextInputFormat.class);
+     job1.setOutputFormatClass(TextOutputFormat.class);
+
+// single input to  map. change to this
+        FileInputFormat.addInputPath(job1, new Path(args[0]));   
+  	
+     // single output from reducer.
+     FileOutputFormat.setOutputPath(job1, new Path(args[1]));
+         
+         
+     job1.waitForCompletion(true);
+
+
+} //end main
+}
